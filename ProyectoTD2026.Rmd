@@ -106,3 +106,35 @@ A partir de esta primera revisión de los datos, vamos a plantear una serie de 2
 ¿Cuántos eventos se registran por día de la semana?
 ¿Qué combinación de componente y evento aparece con más frecuencia?
 ¿Cuál es el número medio de eventos por usuario?
+
+
+
+# Tabla inicial
+
+En la Tabla mostramos un pequeño resumen inicial del fichero con la información principal del conjunto de datos.
+
+```{r}
+tabla_inicial <- data.frame(
+  Medida = c("Número de filas", "Número de columnas"),
+  Valor = c(nrow(logs), ncol(logs))
+)
+
+
+knitr::kable(tabla_inicial, caption = "Resumen inicial del fichero de logs.")
+```
+
+La tabla nos permite comprobar rápidamente el tamaño del fichero con el que vamos a trabajar.
+
+
+
+# Figura inicial
+
+Como primera visualización, representamos el número de eventos registrados por componente. Hemos elegido esta gráfica porque permite ver de forma rápida qué componentes aparecen con más frecuencia en el fichero.
+
+```{r}
+ggplot(logs, aes(x = Component)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+En la figura observamos una primera distribución de los eventos por componente. Esta representación es solo una exploración inicial por lo que no podemos todavía extraer conclusiones definitivas.
