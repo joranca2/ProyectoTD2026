@@ -1,0 +1,18 @@
+---
+title: "Mini proyecto 2026 - Fase 1"
+author: "Grupo: [poned aquí vuestros nombres]"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introducción
+
+En este proyecto analizamos un fichero de logs de Aula Virtual de la asignatura Tratamiento de los Datos. Este fichero recoge distintos eventos registrados en la plataforma y nos permite observar qué tipo de actividad se ha producido durante el curso.
+
+En esta primera entrega hacemos una revisión inicial de los datos. Primero importamos el archivo y después presentamos una pequeña exploración mediante una tabla y una figura, con el objetivo de obtener una visión general del contenido del fichero.
+
+El archivo que utilizamos es `logs_moodle_anon.csv`, y contiene datos anonimizados sobre la actividad en Aula Virtual. Entre sus variables se encuentran la fecha y hora, el usuario, el contexto, el componente, el nombre del evento, la descripción, el origen y la dirección IP. A partir de esta información planteamos distintas preguntas que podremos desarrollar en las siguientes fases del proyecto.
