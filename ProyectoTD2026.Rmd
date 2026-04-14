@@ -89,7 +89,7 @@ A partir de esta primera revisión de los datos, vamos a plantear una serie de 2
 ¿Cómo cambia la actividad en Aula Virtual según el día?
 ¿Existen días con picos claros de actividad?
 ¿Hay usuarios que registran mucha más actividad que otros?
-¿Qué contextos aparecen más veces en el fichero?
+¿Cuántos eventos se registran en cada mes del curso?
 ¿Se observa más actividad en determinados momentos del curso?
 ¿Qué relación hay entre el componente y el tipo de evento?
 ¿Se pueden detectar patrones de uso repetidos en la plataforma?
