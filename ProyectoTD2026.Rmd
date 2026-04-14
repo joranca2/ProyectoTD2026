@@ -3,6 +3,12 @@ title: "Mini proyecto 2026 - Fase 1"
 author: "Grupo: [Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Nuñez, Ignacio Llopis Maset]"
 date: "`r Sys.Date()`"
 output: html_document
+<<<<<<< HEAD
+=======
+editor_options: 
+  markdown: 
+    wrap: 72
+>>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
 ---
 
 ```{r setup, include=FALSE}
@@ -11,8 +17,77 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 # Introducción
 
+<<<<<<< HEAD
 En este proyecto analizamos un fichero de logs de Aula Virtual de la asignatura Tratamiento de los Datos. Este fichero recoge distintos eventos registrados en la plataforma y nos permite observar qué tipo de actividad se ha producido durante el curso.
 
 En esta primera entrega hacemos una revisión inicial de los datos. Primero importamos el archivo y después presentamos una pequeña exploración mediante una tabla y una figura, con el objetivo de obtener una visión general del contenido del fichero.
 
 El archivo que utilizamos es `logs_moodle_anon.csv`, y contiene datos anonimizados sobre la actividad en Aula Virtual. Entre sus variables se encuentran la fecha y hora, el usuario, el contexto, el componente, el nombre del evento, la descripción, el origen y la dirección IP. A partir de esta información planteamos distintas preguntas que podremos desarrollar en las siguientes fases del proyecto.
+=======
+En este proyecto analizamos un fichero de logs de Aula Virtual de la
+asignatura Tratamiento de los Datos. Este fichero recoge distintos
+eventos registrados en la plataforma y nos permite observar qué tipo de
+actividad se ha producido durante el curso.
+
+En esta primera entrega hacemos una revisión inicial de los datos.
+Primero importamos el archivo y después presentamos una pequeña
+exploración mediante una tabla y una figura, con el objetivo de obtener
+una visión general del contenido del fichero.
+
+El archivo que utilizamos es `logs_moodle_anon.csv`, y contiene datos
+anonimizados sobre la actividad en Aula Virtual. Entre sus variables se
+encuentran la fecha y hora, el usuario, el contexto, el componente, el
+nombre del evento, la descripción, el origen y la dirección IP. A partir
+de esta información planteamos distintas preguntas que podremos
+desarrollar en las siguientes fases del proyecto.
+
+# Importación de los datos
+
+Primero cargamos las librerías necesarias e importamos el archivo CSV.
+
+```{r}
+library(ggplot2) # Visualización de datos mediante gráficos
+library(lubridate) # Manejo avanzado de fechas/horas
+library(knitr) # Generación de informes dinámicos
+library(dplyr) # Transformación y manipulación de datos
+library(stringr) # Manipulación de cadenas con regex
+library(tidyr) # Organización de datos en formato tidy
+
+logs <- read.csv("logs_moodle_anon.csv", stringsAsFactors = FALSE)
+```
+
+
+
+A continuación, comprobamos el tamaño del conjunto de datos y los
+nombres de sus variables.
+
+```{r}
+dim(logs) names(logs)
+
+```
+
+
+```{r}
+dim(logs) names(logs)
+```
+
+También podemos ver las primeras filas para comprobar que la importación
+se ha realizado correctamente.
+
+
+```{r}
+head(logs)
+```
+
+
+# Preparación básica de los datos
+
+Para trabajar mejor con la variable de tiempo, convertimos la columna de
+fecha y hora a un formato adecuado. Después extraemos solo la fecha para
+poder hacer una primera exploración sencilla por días.
+
+```{r}
+logs$time <- ymd_hms(logs$time, quiet = TRUE)
+logs$fecha <- as.Date(logs$time)
+```
+>>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
