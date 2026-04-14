@@ -3,12 +3,6 @@ title: "Mini proyecto 2026 - Fase 1"
 author: "Grupo: [Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Nuñez, Ignacio Llopis Maset]"
 date: "`r Sys.Date()`"
 output: html_document
-<<<<<<< HEAD
-=======
-editor_options: 
-  markdown: 
-    wrap: 72
->>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
 ---
 
 ```{r setup, include=FALSE}
@@ -78,7 +72,6 @@ poder trabajar mejor con ella en el futuro.
 logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
 logs$fecha <- as.Date(logs$Hora) 
 ```
->>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
 
 # Preguntas de análisis
 
