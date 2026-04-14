@@ -2,7 +2,7 @@
 title: "Mini proyecto 2026 - Fase 1"
 author: "Grupo: [Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Nuñez, Ignacio Llopis Maset]"
 date: "`r Sys.Date()`"
-output: html_document
+output: bookdown::html_document2
 ---
 
 ```{r setup, include=FALSE}
@@ -90,12 +90,10 @@ A partir de esta primera revisión de los datos, vamos a plantear una serie de 2
 ¿Cuántos eventos se registran en cada hora del día?
 ¿Qué franjas horarias concentran mayor actividad?
 ¿Qué porcentaje de eventos corresponde a cada componente?
-¿Cuántos eventos realiza cada usuario?
 ¿Qué usuarios registran mayor número de eventos?
 ¿Cuántos contextos diferentes aparecen en el conjunto de datos?
 ¿Qué contextos tienen mayor número de eventos?
 ¿Cuántos tipos de eventos distintos existen?
-¿Qué porcentaje representa cada tipo de evento sobre el total?
 ¿Cuántos eventos se registran por día de la semana?
 ¿Qué combinación de componente y evento aparece con más frecuencia?
 ¿Cuál es el número medio de eventos por usuario?
@@ -104,9 +102,9 @@ A partir de esta primera revisión de los datos, vamos a plantear una serie de 2
 
 # Tabla inicial
 
-En la Tabla mostramos un pequeño resumen inicial del fichero con la información principal del conjunto de datos.
+En la Tabla \@ref(tab:tabla-inicial) mostramos un pequeño resumen inicial del fichero con la información principal del conjunto de datos.
 
-```{r}
+```{r tabla-inicial}
 tabla_inicial <- data.frame(
   Medida = c("Número de filas", "Número de columnas"),
   Valor = c(nrow(logs), ncol(logs))
@@ -119,15 +117,13 @@ knitr::kable(tabla_inicial, caption = "Resumen inicial del fichero de logs.")
 La tabla nos permite comprobar rápidamente el tamaño del fichero con el que vamos a trabajar.
 
 
-
 # Figura inicial
 
-Como primera visualización, representamos el número de eventos registrados por componente. Hemos elegido esta gráfica porque permite ver de forma rápida qué componentes aparecen con más frecuencia en el fichero.
+Como primera visualización,en la figura \@ref(fig:figura-inicial), representamos el número de eventos registrados por componente. Hemos elegido esta gráfica porque permite ver de forma rápida qué componentes aparecen con más frecuencia en el fichero.
 
-```{r}
-ggplot(logs, aes(x = Component)) +
-  geom_bar() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```{r figura-inicial, fig.cap="Número de eventos por componente."}
+ggplot(logs, aes(x = Componente)) +
+  geom_bar()
 ```
 
 En la figura observamos una primera distribución de los eventos por componente. Esta representación es solo una exploración inicial por lo que no podemos todavía extraer conclusiones definitivas.
