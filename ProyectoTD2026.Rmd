@@ -78,24 +78,43 @@ logs$fecha <- as.Date(logs$Hora)
 A partir de esta primera revisión de los datos, vamos a plantear una serie de 20 preguntas que estudiaremos más adelante:
 
 ¿Qué componentes generan un mayor número de eventos?
+
 ¿Qué tipos de eventos aparecen con más frecuencia?
+
 ¿Cómo cambia la actividad en Aula Virtual según el día?
+
 ¿Existen días con picos claros de actividad?
+
 ¿Hay usuarios que registran mucha más actividad que otros?
+
 ¿Cuántos eventos se registran en cada mes del curso?
+
 ¿Se observa más actividad en determinados momentos del curso?
+
 ¿Qué relación hay entre el componente y el tipo de evento?
+
 ¿Se pueden detectar patrones de uso repetidos en la plataforma?
+
 ¿Qué eventos son los más habituales dentro de cada componente?
+
 ¿Cuántos eventos se registran en cada hora del día?
+
 ¿Qué franjas horarias concentran mayor actividad?
+
 ¿Qué porcentaje de eventos corresponde a cada componente?
+
 ¿Qué usuarios registran mayor número de eventos?
+
 ¿Cuántos contextos diferentes aparecen en el conjunto de datos?
+
 ¿Qué contextos tienen mayor número de eventos?
+
 ¿Cuántos tipos de eventos distintos existen?
+
 ¿Cuántos eventos se registran por día de la semana?
+
 ¿Qué combinación de componente y evento aparece con más frecuencia?
+
 ¿Cuál es el número medio de eventos por usuario?
 
 
@@ -123,7 +142,7 @@ Como primera visualización,en la figura \@ref(fig:figura-inicial), representamo
 
 ```{r figura-inicial, fig.cap="Número de eventos por componente."}
 ggplot(logs, aes(x = Componente)) +
-  geom_bar()
+  geom_bar() +   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
 En la figura observamos una primera distribución de los eventos por componente. Esta representación es solo una exploración inicial por lo que no podemos todavía extraer conclusiones definitivas.
