@@ -71,11 +71,11 @@ head(logs)
 # Preparación básica de los datos
 
 Para trabajar mejor con la variable de tiempo, convertimos la columna de
-fecha y hora a un formato adecuado. Después extraemos solo la fecha para
-poder hacer una primera exploración sencilla por días.
+fecha y hora a un formato tipo fecha. Después extraemos solo la fecha para
+poder trabajar mejor con ella en el futuro.
 
 ```{r}
-logs$time <- ymd_hms(logs$time, quiet = TRUE)
-logs$fecha <- as.Date(logs$time)
+logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
+logs$fecha <- as.Date(logs$Hora) 
 ```
 >>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
