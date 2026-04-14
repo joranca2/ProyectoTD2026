@@ -79,3 +79,30 @@ logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
 logs$fecha <- as.Date(logs$Hora) 
 ```
 >>>>>>> 544a334 (Importación, primera vista de los datos y adecuación)
+
+# Preguntas de análisis
+
+A partir de esta primera revisión de los datos, vamos a plantear una serie de 20 preguntas que estudiaremos más adelante:
+
+¿Qué componentes generan un mayor número de eventos?
+¿Qué tipos de eventos aparecen con más frecuencia?
+¿Cómo cambia la actividad en Aula Virtual según el día?
+¿Existen días con picos claros de actividad?
+¿Hay usuarios que registran mucha más actividad que otros?
+¿Qué contextos aparecen más veces en el fichero?
+¿Se observa más actividad en determinados momentos del curso?
+¿Qué relación hay entre el componente y el tipo de evento?
+¿Se pueden detectar patrones de uso repetidos en la plataforma?
+¿Qué eventos son los más habituales dentro de cada componente?
+¿Cuántos eventos se registran en cada hora del día?
+¿Qué franjas horarias concentran mayor actividad?
+¿Qué porcentaje de eventos corresponde a cada componente?
+¿Cuántos eventos realiza cada usuario?
+¿Qué usuarios registran mayor número de eventos?
+¿Cuántos contextos diferentes aparecen en el conjunto de datos?
+¿Qué contextos tienen mayor número de eventos?
+¿Cuántos tipos de eventos distintos existen?
+¿Qué porcentaje representa cada tipo de evento sobre el total?
+¿Cuántos eventos se registran por día de la semana?
+¿Qué combinación de componente y evento aparece con más frecuencia?
+¿Cuál es el número medio de eventos por usuario?
