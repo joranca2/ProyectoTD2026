@@ -1,6 +1,6 @@
 ---
 title: "Mini proyecto 2026 - Fase 1"
-author: "Grupo: [poned aquí vuestros nombres]"
+author: "Grupo: [Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Nuñez, Ignacio Llopis Maset]"
 date: "`r Sys.Date()`"
 output: html_document
 ---
