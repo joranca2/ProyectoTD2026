@@ -40,7 +40,7 @@ library(dplyr) # Transformación y manipulación de datos
 library(stringr) # Manipulación de cadenas con regex
 library(tidyr) # Organización de datos en formato tidy
 
-logs <- read.csv("logs_moodle_anon.csv", stringsAsFactors = FALSE)
+logs <- read.csv("data/logs_moodle_anon.csv", stringsAsFactors = FALSE)
 ```
 
 
