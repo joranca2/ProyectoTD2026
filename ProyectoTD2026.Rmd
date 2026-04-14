@@ -55,13 +55,8 @@ A continuación, comprobamos el tamaño del conjunto de datos y los
 nombres de sus variables.
 
 ```{r}
-dim(logs) names(logs)
-
-```
-
-
-```{r}
-dim(logs) names(logs)
+dim(logs) 
+names(logs)
 ```
 
 También podemos ver las primeras filas para comprobar que la importación
