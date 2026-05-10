@@ -1,148 +1,451 @@
 ---
-title: "Mini proyecto 2026 - Fase 1"
-author: "Grupo: [Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Nuñez, Ignacio Llopis Maset]"
+title: "Mini Proyecto 2026. Análisis exploratorio de logs de Aula Virtual"
+author: "Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Núñez e Ignacio Llopis Maset"
 date: "`r Sys.Date()`"
-output: bookdown::html_document2
+output:
+  bookdown::pdf_document2:
+    fig_caption: yes
+    df_print: kable
+    toc: true
+    toc_depth: 2
+    number_sections: true
+  bookdown::html_document2:
+    fig_caption: yes
+    df_print: kable
+    toc: true
+    toc_depth: 2
+    number_sections: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```{r Configuracion-general, include=FALSE}
+# Configuramos el documento
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(knitr)
+library(bookdown)
+library(tidyr)
+library(stringr)
+
+options(OutDec = ",", digits = 3)
+```
+
+```{r Carga-y-preparacion-datos, include=FALSE}
+# Localizamos el archivo de datos
+ruta_datos <- if (file.exists("data/logs_moodle_anon.csv")) {
+  "data/logs_moodle_anon.csv"
+} else if (file.exists("logs_moodle_anon.csv")) {
+  "logs_moodle_anon.csv"
+} else {
+  stop("No se encuentra el archivo logs_moodle_anon.csv ni en ./data ni en la carpeta raíz del proyecto.")
+}
+
+# Cargamos el fichero CSV
+logs <- read.csv(ruta_datos, stringsAsFactors = FALSE)
+names(logs) <- make.names(names(logs))
+
+# Convertimos la hora y creamos variables derivadas
+logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
+logs$fecha <- as.Date(logs$Hora)
+logs$hora_num <- hour(logs$Hora)
+logs$mes_num <- month(logs$Hora)
+logs$mes <- factor(month(logs$Hora, label = TRUE, abbr = TRUE),
+                   levels = month(seq.Date(as.Date("2026-01-01"), by = "month", length.out = 12), label = TRUE, abbr = TRUE))
+logs$dia_semana <- factor(wday(logs$Hora, label = TRUE, abbr = FALSE, week_start = 1),
+                          levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"))
+logs$semana <- isoweek(logs$Hora)
+logs$anio <- year(logs$Hora)
+logs$fecha_semana <- floor_date(logs$Hora, unit = "week", week_start = 1)
+
+logs$franja_horaria <- case_when(
+  logs$hora_num >= 6 & logs$hora_num < 12 ~ "Mañana",
+  logs$hora_num >= 12 & logs$hora_num < 18 ~ "Tarde",
+  logs$hora_num >= 18 & logs$hora_num < 24 ~ "Noche",
+  TRUE ~ "Madrugada"
+)
+logs$franja_horaria <- factor(logs$franja_horaria,
+                              levels = c("Madrugada", "Mañana", "Tarde", "Noche"))
+
+logs$grupo_dia <- ifelse(logs$dia_semana %in% c("sábado", "domingo"),
+                         "Fines de semana", "Entre semana")
+
+# Construimos un resumen básico del dataset
+sumario_dataset <- function(data){
+  data.frame(
+    variable = names(data),
+    type = sapply(data, function(x) class(x)[1]),
+    levels = sapply(data, function(x) length(unique(x))),
+    topLevel = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      names(xt)[1]
+    }),
+    topCount = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      as.numeric(xt[1])
+    }),
+    topFrac = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      as.numeric(xt[1]) / length(x)
+    }),
+    missFreq = sapply(data, function(x) sum(is.na(x))),
+    missFrac = sapply(data, function(x) mean(is.na(x)))
+  )
+}
+
+sumario <- sumario_dataset(logs)
+
+variables_estudio <- data.frame(
+  Variable = c("Hora", "Nombre.completo.del.usuario", "Usuario.afectado",
+               "Contexto.del.evento", "Componente", "Nombre.evento",
+               "Descripción", "Origen", "Dirección.IP", "fecha",
+               "dia_semana", "franja_horaria"),
+  Descripción = c("Instante en el que se registra el evento",
+                  "Usuario que realiza la acción",
+                  "Usuario sobre el que recae la acción, si aplica",
+                  "Espacio o contexto donde ocurre el evento",
+                  "Subsistema de Moodle que genera el evento",
+                  "Tipo de evento registrado",
+                  "Texto descriptivo del evento",
+                  "Canal o procedencia del evento",
+                  "Dirección IP anonimizada del acceso",
+                  "Fecha sin componente horaria",
+                  "Día de la semana del evento",
+                  "Agrupación horaria para el análisis"),
+  Tipo = c("POSIXct", "character", "character", "character", "character",
+           "character", "character", "character", "character", "Date",
+           "factor", "factor")
+)
+
+missing_resumen <- data.frame(
+  variable = names(logs),
+  missings = sapply(logs, function(x) sum(is.na(x))),
+  proporcion = sapply(logs, function(x) mean(is.na(x)))
+) %>%
+  arrange(desc(proporcion))
+
+actividad_diaria <- logs %>%
+  count(fecha, name = "eventos") %>%
+  arrange(fecha)
+
+actividad_diaria <- actividad_diaria %>%
+  mutate(dia_semana = factor(wday(fecha, label = TRUE, abbr = FALSE, week_start = 1),
+                             levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")))
+
+q1 <- quantile(actividad_diaria$eventos, 0.25, na.rm = TRUE)
+q3 <- quantile(actividad_diaria$eventos, 0.75, na.rm = TRUE)
+iqr_val <- IQR(actividad_diaria$eventos, na.rm = TRUE)
+lim_inf <- q1 - 1.5 * iqr_val
+lim_sup <- q3 + 1.5 * iqr_val
+
+actividad_diaria$outlier_boxplot <- actividad_diaria$eventos < lim_inf | actividad_diaria$eventos > lim_sup
+
+resumen_outliers <- data.frame(
+  method = "ReglaBoxplot",
+  n = nrow(actividad_diaria),
+  nMiss = sum(is.na(actividad_diaria$eventos)),
+  nOut = sum(actividad_diaria$outlier_boxplot, na.rm = TRUE),
+  lowLim = lim_inf,
+  upLim = lim_sup,
+  minNom = min(actividad_diaria$eventos[!actividad_diaria$outlier_boxplot], na.rm = TRUE),
+  maxNom = max(actividad_diaria$eventos[!actividad_diaria$outlier_boxplot], na.rm = TRUE)
+)
+
+componentes_top <- logs %>%
+  count(Componente, sort = TRUE) %>%
+  slice_head(n = 10)
+
+eventos_top <- logs %>%
+  count(Nombre.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+actividad_dia_semana <- logs %>%
+  count(dia_semana, name = "eventos")
+
+actividad_franja <- logs %>%
+  count(franja_horaria, name = "eventos")
+
+contextos_top <- logs %>%
+  count(Contexto.del.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+usuarios_top <- logs %>%
+  count(Nombre.completo.del.usuario, sort = TRUE) %>%
+  slice_head(n = 10)
+
+combinaciones_top <- logs %>%
+  count(Componente, Nombre.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+componentes_semana <- logs %>%
+  count(grupo_dia, Componente, sort = TRUE) %>%
+  group_by(grupo_dia) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+
+origen_franja <- logs %>%
+  count(Origen, franja_horaria, sort = TRUE)
+
+actividad_mensual <- logs %>%
+  count(anio, mes_num, mes, name = "eventos") %>%
+  arrange(anio, mes_num)
+
+actividad_semanal <- logs %>%
+  count(fecha_semana, name = "eventos") %>%
+  arrange(fecha_semana)
+
+actividad_horaria <- logs %>%
+  count(hora_num, name = "eventos")
+
+componentes_hora <- logs %>%
+  count(franja_horaria, Componente, sort = TRUE) %>%
+  group_by(franja_horaria) %>%
+  slice_head(n = 5) %>%
+  ungroup()
 ```
 
 # Introducción
 
-En este proyecto analizamos un fichero de logs de Aula Virtual de la
-asignatura Tratamiento de los Datos. Este fichero recoge distintos
-eventos registrados en la plataforma y nos permite observar qué tipo de
-actividad se ha producido durante el curso.
+En este proyecto se aborda el análisis exploratorio de datos a partir de un fichero de logs de Aula Virtual de la asignatura Tratamiento de los Datos, con el objetivo de extraer información relevante sobre la actividad registrada en la plataforma, los tipos de eventos más habituales y los patrones temporales de uso. El conjunto de datos utilizado corresponde al archivo `logs_moodle_anon.csv`, proporcionado para el mini proyecto y anonimizado antes de su distribución.
 
-En esta primera entrega hacemos una revisión inicial de los datos.
-Primero importamos el archivo y después presentamos una pequeña
-exploración mediante una tabla y una figura, con el objetivo de obtener
-una visión general del contenido del fichero.
+A diferencia de otros conjuntos de datos más clásicos, en este caso no trabajamos con encuestas o mediciones físicas, sino con un registro de eventos. Esto hace especialmente interesante el análisis, ya que cada fila del fichero representa una acción concreta realizada dentro de Aula Virtual. El estudio de estos eventos permite responder a preguntas relacionadas con el comportamiento de uso de la plataforma, la frecuencia de actividad y las diferencias entre componentes, contextos y franjas horarias.
 
-El archivo que utilizamos es `logs_moodle_anon.csv`, y contiene datos
-anonimizados sobre la actividad en Aula Virtual. Entre sus variables se
-encuentran la fecha y hora, el usuario, el contexto, el componente, el
-nombre del evento, la descripción, el origen y la dirección IP. A partir
-de esta información planteamos distintas preguntas que podremos
-desarrollar en las siguientes fases del proyecto.
+El objetivo principal del trabajo es transformar este registro bruto en un conjunto de datos interpretable y utilizable para responder a una serie de preguntas sobre el uso de Aula Virtual. Para ello, se realiza primero una carga y preparación de los datos, seguida de un análisis descriptivo, una revisión de datos perdidos y outliers, y finalmente una batería de respuestas apoyadas en tablas y figuras.
 
-# Importación de los datos
+# Material y Métodos
 
-Primero cargamos las librerías necesarias e importamos el archivo CSV.
+Para el desarrollo del análisis, en primer lugar se cargan todas las librerías necesarias al principio del código. Estas librerías son las mostradas en la Tabla \@ref(tab:Librerias-utilizadas).
 
-```{r}
-library(ggplot2) # Visualización de datos mediante gráficos
-library(lubridate) # Manejo avanzado de fechas/horas
-library(knitr) # Generación de informes dinámicos
-library(dplyr) # Transformación y manipulación de datos
-library(stringr) # Manipulación de cadenas con regex
-library(tidyr) # Organización de datos en formato tidy
-
-logs <- read.csv("data/logs_moodle_anon.csv", stringsAsFactors = FALSE)
-```
-
-
-
-A continuación, comprobamos el tamaño del conjunto de datos y los
-nombres de sus variables.
-
-```{r}
-dim(logs) 
-names(logs)
-```
-
-También podemos ver las primeras filas para comprobar que la importación
-se ha realizado correctamente.
-
-
-```{r}
-head(logs)
-```
-
-
-# Preparación básica de los datos
-
-Para trabajar mejor con la variable de tiempo, convertimos la columna de
-fecha y hora a un formato tipo fecha. Después extraemos solo la fecha para
-poder trabajar mejor con ella en el futuro.
-
-```{r}
-logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
-logs$fecha <- as.Date(logs$Hora) 
-```
-
-# Preguntas de análisis
-
-A partir de esta primera revisión de los datos, vamos a plantear una serie de 20 preguntas que estudiaremos más adelante:
-
-¿Qué componentes generan un mayor número de eventos?
-
-¿Qué tipos de eventos aparecen con más frecuencia?
-
-¿Cómo cambia la actividad en Aula Virtual según el día?
-
-¿Existen días con picos claros de actividad?
-
-¿Hay usuarios que registran mucha más actividad que otros?
-
-¿Cuántos eventos se registran en cada mes del curso?
-
-¿Se observa más actividad en determinados momentos del curso?
-
-¿Qué relación hay entre el componente y el tipo de evento?
-
-¿Se pueden detectar patrones de uso repetidos en la plataforma?
-
-¿Qué eventos son los más habituales dentro de cada componente?
-
-¿Cuántos eventos se registran en cada hora del día?
-
-¿Qué franjas horarias concentran mayor actividad?
-
-¿Qué porcentaje de eventos corresponde a cada componente?
-
-¿Qué usuarios registran mayor número de eventos?
-
-¿Cuántos contextos diferentes aparecen en el conjunto de datos?
-
-¿Qué contextos tienen mayor número de eventos?
-
-¿Cuántos tipos de eventos distintos existen?
-
-¿Cuántos eventos se registran por día de la semana?
-
-¿Qué combinación de componente y evento aparece con más frecuencia?
-
-¿Cuál es el número medio de eventos por usuario?
-
-
-
-# Tabla inicial
-
-En la Tabla \@ref(tab:tabla-inicial) mostramos un pequeño resumen inicial del fichero con la información principal del conjunto de datos.
-
-```{r tabla-inicial}
-tabla_inicial <- data.frame(
-  Medida = c("Número de filas", "Número de columnas"),
-  Valor = c(nrow(logs), ncol(logs))
+```{r Librerias-utilizadas}
+# Tabla de librerías empleadas
+tabla_librerias <- data.frame(
+  Librería = c("ggplot2", "dplyr", "lubridate", "knitr", "bookdown", "tidyr", "stringr"),
+  Función = c("Visualización de datos mediante gráficos",
+              "Transformación y manipulación de datos",
+              "Manejo avanzado de fechas y horas",
+              "Generación de informes dinámicos",
+              "Creación de documentos académicos con referencias cruzadas",
+              "Organización de datos en formato tidy",
+              "Manipulación de cadenas")
 )
 
-
-knitr::kable(tabla_inicial, caption = "Resumen inicial del fichero de logs.")
+knitr::kable(tabla_librerias, caption = "Librerías utilizadas y su función")
 ```
 
-La tabla nos permite comprobar rápidamente el tamaño del fichero con el que vamos a trabajar.
+Posteriormente, se realiza la carga del archivo `logs_moodle_anon.csv`, almacenado en la carpeta `./data`. Una vez importado, se procede a convertir la variable `Hora` a formato fecha-hora con `as.POSIXct`, lo que permite derivar nuevas variables útiles para el análisis, como la fecha sin componente horaria, el día de la semana, el número de semana, el mes o la franja horaria.
 
+Dado que el fichero contiene variables principalmente categóricas y temporales, resulta útil crear nuevas variables derivadas que faciliten la agrupación de eventos. En concreto, se genera una variable `fecha` para estudiar la actividad diaria, una variable `franja_horaria` para distinguir entre madrugada, mañana, tarde y noche, y una variable `grupo_dia` para separar entre actividad entre semana y en fines de semana. Este tipo de transformaciones son habituales en un análisis exploratorio, ya que permiten pasar de un registro bruto a una representación más interpretable del comportamiento del sistema.
 
-# Figura inicial
+Además, con el fin de resumir el conjunto de datos de manera sistemática, se construye un `data.frame` llamado `sumario`, inspirado en el planteamiento del Tema 5, en el que se recogen para cada variable su tipo, el número de niveles distintos, el valor más frecuente, su frecuencia y la proporción de datos perdidos. De esta manera, el trabajo no solo presenta figuras y tablas puntuales, sino también una descripción estructurada del dataset.
 
-Como primera visualización,en la figura \@ref(fig:figura-inicial), representamos el número de eventos registrados por componente. Hemos elegido esta gráfica porque permite ver de forma rápida qué componentes aparecen con más frecuencia en el fichero.
+Las variables principales consideradas en el estudio aparecen resumidas en la Tabla \@ref(tab:Variables-principales). Se han seleccionado tanto variables originales del fichero como algunas variables derivadas que permiten responder a las preguntas planteadas más adelante.
 
-```{r figura-inicial, fig.cap="Número de eventos por componente."}
-ggplot(logs, aes(x = Componente)) +
-  geom_bar() +   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```{r Variables-principales}
+# Tabla de variables que vamos a estudiar
+knitr::kable(variables_estudio, caption = "Variables principales utilizadas en el análisis")
 ```
 
-En la figura observamos una primera distribución de los eventos por componente. Esta representación es solo una exploración inicial por lo que no podemos todavía extraer conclusiones definitivas.
+A continuación, se muestra un resumen básico del conjunto de datos en la Tabla \@ref(tab:Sumario-del-dataset).
+
+```{r Sumario-del-dataset}
+# Tabla resumen del dataset
+knitr::kable(sumario, caption = "Resumen básico del dataset")
+```
+
+# Análisis de datos perdidos
+
+Al analizar los datos faltantes se observa que el conjunto de datos presenta un nivel de missing relativamente bajo en la mayor parte de las variables originales. Esto resulta razonable en un fichero de logs, donde los campos principales suelen estar definidos por el propio sistema y no dependen tanto de la introducción manual de datos como ocurre en otros contextos.
+
+No obstante, conviene revisar de forma explícita qué variables contienen valores perdidos y en qué proporción, ya que incluso una pequeña cantidad de `NA` puede afectar a tablas o gráficos agrupados. En la Tabla \@ref(tab:Tabla-missing) se muestra el número de valores perdidos por variable, así como su proporción respecto al total de observaciones.
+
+```{r Tabla-missing}
+# Tabla de datos perdidos
+knitr::kable(missing_resumen, caption = "Número y proporción de datos perdidos por variable")
+```
+
+La Figura \@ref(fig:Grafico-missing) representa gráficamente esa misma información. Como puede apreciarse, la mayor parte de las variables concentran una proporción muy baja de valores faltantes, lo que permite trabajar con el conjunto de datos sin necesidad de aplicar técnicas complejas de imputación.
+
+```{r Grafico-missing, fig.cap="Proporción de valores perdidos por variable"}
+ggplot(missing_resumen, aes(x = reorder(variable, proporcion), y = proporcion)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Variable", y = "Proporción de missing")
+```
+
+En este caso, y dado que el análisis se centra principalmente en recuentos y frecuencias de eventos, la estrategia adoptada consiste en mantener el conjunto de datos tal y como ha sido importado y dejar que cada cálculo ignore de forma natural los `NA` cuando corresponda. Esta decisión resulta razonable porque no se trata de un estudio inferencial sobre una variable continua crítica, sino de una exploración descriptiva de patrones de actividad.
+
+# Análisis de los outliers
+
+El análisis de outliers en un fichero de logs no puede abordarse exactamente igual que en un dataset tradicional con muchas variables numéricas. Aquí no resulta tan natural buscar valores atípicos en medidas físicas o económicas, pero sí tiene interés detectar días con una actividad anormalmente alta o baja.
+
+Por ello, se ha optado por estudiar el número de eventos registrados por día. En primer lugar, se agrupan todos los eventos por fecha y se calcula el número total de acciones registradas en cada una. Después, se aplica la regla del boxplot sobre esa variable diaria de recuento, obteniendo el umbral inferior y superior de actividad considerada típica. Los resultados aparecen en la Tabla \@ref(tab:Tabla-outliers).
+
+## Tabla resumen de outliers detectados en la actividad diaria
+```{r Tabla-outliers}
+# Tabla de outliers diarios
+knitr::kable(resumen_outliers, caption = "Identificación de outliers en la actividad diaria mediante la regla del boxplot")
+```
+
+La Figura \@ref(fig:Grafico-outliers) representa el número de eventos diarios y resalta en color los días marcados como outliers según el criterio anterior.
+
+```{r Grafico-outliers, fig.cap="Actividad diaria y detección de outliers según la regla del boxplot"}
+ ggplot(actividad_diaria, aes(x = fecha, y = eventos, color = outlier_boxplot)) +
+  geom_point() +
+  geom_line(alpha = 0.5) +
+  labs(x = "Fecha", y = "Número de eventos", color = "Outlier")
+```
+
+Este tipo de outliers no debe interpretarse necesariamente como errores. En un sistema de Aula Virtual, es perfectamente razonable encontrar días con una actividad especialmente alta, por ejemplo en momentos cercanos a entregas, publicación de materiales, revisiones o actividades evaluables. En consecuencia, en este trabajo los outliers se interpretan como días de comportamiento singular que pueden aportar información relevante sobre el uso real de la plataforma, y no como observaciones que deban eliminarse automáticamente.
+
+# Respuestas
+
+Una vez hemos cargado y preparado los datos, y tras revisar su estructura general, los posibles valores perdidos y la existencia de días atípicos de actividad, podemos plantear una serie de preguntas sobre el uso de Aula Virtual. Estas preguntas combinan análisis univariante, análisis bivariante y algunas transformaciones sencillas de las variables temporales.
+
+## ¿Qué componentes generan un mayor número de eventos?
+
+```{r Componentes-mas-frecuentes}
+# Tabla de componentes más frecuentes
+knitr::kable(componentes_top, caption = "Componentes con mayor número de eventos")
+```
+
+En la Tabla \@ref(tab:Componentes-mas-frecuentes) se observa que el componente con más eventos es `r componentes_top$Componente[1]`, con `r componentes_top$n[1]` registros. Los primeros puestos concentran una parte importante de la actividad total, lo que indica que el uso de Aula Virtual no se reparte por igual entre todos los componentes, sino que se concentra en unos pocos espacios principales.
+
+## ¿Qué tipos de eventos aparecen con más frecuencia?
+
+```{r Eventos-mas-frecuentes}
+# Tabla de eventos más frecuentes
+knitr::kable(eventos_top, caption = "Tipos de evento más frecuentes")
+```
+
+La Tabla \@ref(tab:Eventos-mas-frecuentes) muestra que el evento más frecuente es `r eventos_top$Nombre.evento[1]`, con `r eventos_top$n[1]` apariciones. Además, los eventos que ocupan las primeras posiciones marcan el tipo de interacción dominante en la plataforma y permiten distinguir si el uso está más orientado a consulta, navegación o actualización de contenidos.
+
+## ¿Cómo cambia la actividad según el día de la semana?
+
+```{r Tabla-dia-semana}
+# Tabla de actividad por día de la semana
+knitr::kable(actividad_dia_semana, caption = "Número de eventos por día de la semana")
+```
+
+```{r Grafico-dia-semana, fig.cap="Número de eventos por día de la semana"}
+ggplot(actividad_dia_semana, aes(x = dia_semana, y = eventos)) +
+  geom_col(fill = "steelblue") +
+  labs(x = "Día", y = "Número de eventos")
+```
+
+La Tabla \@ref(tab:Tabla-dia-semana) y la Figura \@ref(fig:Grafico-dia-semana) muestran que el día con mayor actividad es `r as.character(actividad_dia_semana$dia_semana[which.max(actividad_dia_semana$eventos)])`, con `r max(actividad_dia_semana$eventos)` eventos, mientras que el de menor actividad es `r as.character(actividad_dia_semana$dia_semana[which.min(actividad_dia_semana$eventos)])`, con `r min(actividad_dia_semana$eventos)` registros. Esto indica que la actividad semanal no es uniforme y que existen días claramente más intensos que otros dentro del uso de Aula Virtual.
+
+## ¿Qué franja horaria concentra más actividad?
+
+```{r Tabla-franja-horaria}
+# Tabla de actividad por franja horaria
+knitr::kable(actividad_franja, caption = "Número de eventos por franja horaria")
+```
+
+```{r Grafico-franja-horaria, fig.cap="Distribución de eventos por franja horaria"}
+ggplot(actividad_franja, aes(x = franja_horaria, y = eventos)) +
+  geom_col(fill = "darkorange") +
+  labs(x = "Franja horaria", y = "Número de eventos")
+```
+
+La Tabla \@ref(tab:Tabla-franja-horaria) y la Figura \@ref(fig:Grafico-franja-horaria) muestran que la franja con mayor actividad es `r as.character(actividad_franja$franja_horaria[which.max(actividad_franja$eventos)])`, con `r max(actividad_franja$eventos)` eventos. La diferencia entre franjas permite ver si el uso de la plataforma se concentra más en horario diurno o si también mantiene una actividad destacable fuera de las horas más habituales.
+
+## ¿Qué contextos del evento aparecen más veces en el fichero?
+
+```{r Contextos-mas-frecuentes}
+# Tabla de contextos más frecuentes
+knitr::kable(contextos_top, caption = "Contextos del evento con más actividad")
+```
+
+En la Tabla \@ref(tab:Contextos-mas-frecuentes) se aprecia que el contexto más frecuente es `r contextos_top$Contexto.del.evento[1]`, con `r contextos_top$n[1]` eventos. Esto ayuda a localizar en qué entorno funcional de Aula Virtual se concentra la mayor parte de la actividad registrada.
+
+## ¿Qué usuarios registran mayor número de eventos?
+
+```{r Usuarios-mas-activos}
+# Tabla de usuarios más activos
+knitr::kable(usuarios_top, caption = "Usuarios con mayor número de eventos registrados")
+```
+
+La Tabla \@ref(tab:Usuarios-mas-activos) muestra qué usuarios concentran más registros en el fichero. El usuario situado en primera posición acumula `r usuarios_top$n[1]` eventos, por lo que existe cierta desigualdad en el volumen de actividad registrado por usuario. Aun así, este resultado debe interpretarse con prudencia, ya que un mayor número de eventos solo refleja más interacción registrada en la plataforma.
+
+## ¿Qué combinaciones de componente y nombre de evento son las más frecuentes?
+
+```{r Combinaciones-componente-evento}
+# Tabla de combinaciones más frecuentes
+knitr::kable(combinaciones_top, caption = "Combinaciones más frecuentes entre componente y nombre de evento")
+```
+
+La Tabla \@ref(tab:Combinaciones-componente-evento) permite ver qué combinación concreta de componente y evento es la más repetida. En este caso, la combinación situada en primera posición aparece `r combinaciones_top$n[1]` veces, lo que ayuda a identificar con más precisión qué acción domina dentro de los componentes más utilizados.
+
+## ¿Existen diferencias entre la actividad entre semana y la de los fines de semana?
+
+```{r Componentes-entre-semana-y-fin-de-semana}
+knitr::kable(componentes_semana, caption = "Componentes principales entre semana y en fines de semana")
+```
+
+La Tabla \@ref(tab:Componentes-entre-semana-y-fin-de-semana) compara los componentes más frecuentes entre semana y en fin de semana. Si se observan diferencias en los primeros puestos de cada grupo, eso sugiere que el uso de Aula Virtual no responde exactamente al mismo patrón durante toda la semana y que ciertas actividades se concentran más en días lectivos que en fines de semana.
+
+## ¿Cómo evoluciona la actividad total a lo largo del tiempo?
+
+```{r Evolucion-semanal, fig.cap="Evolución semanal del número de eventos"}
+ggplot(actividad_semanal, aes(x = fecha_semana, y = eventos)) +
+  geom_line(color = "navy") +
+  geom_point(color = "navy", size = 0.8) +
+  labs(x = "Semana", y = "Número de eventos")
+```
+
+La Figura \@ref(fig:Evolucion-semanal) muestra cómo cambia el número total de eventos de una semana a otra. En ella se distinguen periodos de mayor intensidad y otros de menor actividad, lo que permite detectar semanas especialmente activas y relacionarlas con momentos concretos del curso.
+
+## ¿Qué meses concentran mayor actividad?
+
+```{r Tabla-actividad-mensual}
+# Tabla de actividad por mes
+knitr::kable(actividad_mensual, caption = "Número de eventos por mes")
+```
+
+```{r Grafico-actividad-mensual, fig.cap="Actividad mensual registrada en Aula Virtual"}
+ggplot(actividad_mensual, aes(x = interaction(anio, mes, lex.order = TRUE), y = eventos, group = 1)) +
+  geom_line(color = "forestgreen") +
+  geom_point(color = "forestgreen") +
+  labs(x = "Mes", y = "Número de eventos") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+La Tabla \@ref(tab:Tabla-actividad-mensual) y la Figura \@ref(fig:Grafico-actividad-mensual) muestran qué meses concentran más actividad. El mes con mayor número de eventos registra `r max(actividad_mensual$eventos)` accesos, mientras que el de menor actividad queda claramente por debajo, lo que confirma que la intensidad de uso de Aula Virtual cambia a lo largo del curso.
+
+## ¿Qué relación existe entre el origen del evento y la franja horaria?
+
+```{r Tabla-origen-franja}
+# Tabla cruzada entre origen y franja horaria
+knitr::kable(origen_franja, caption = "Distribución de eventos según origen y franja horaria")
+```
+
+```{r Grafico-origen-franja, fig.cap="Relación entre origen del evento y franja horaria"}
+ggplot(origen_franja, aes(x = franja_horaria, y = n, fill = Origen)) +
+  geom_col(position = "dodge") +
+  labs(x = "Franja horaria", y = "Número de eventos", fill = "Origen")
+```
+
+La Tabla \@ref(tab:Tabla-origen-franja) y la Figura \@ref(fig:Grafico-origen-franja) muestran que el origen `web` domina con mucha diferencia en todas las franjas horarias. Por ejemplo, en la mañana se registran `r origen_franja$n[origen_franja$Origen == "web" & origen_franja$franja_horaria == "Mañana"]` eventos de tipo `web`, frente a `r origen_franja$n[origen_franja$Origen == "cli" & origen_franja$franja_horaria == "Mañana"]` de `cli` y `r ifelse(any(origen_franja$Origen == "restore" & origen_franja$franja_horaria == "Mañana"), origen_franja$n[origen_franja$Origen == "restore" & origen_franja$franja_horaria == "Mañana"], 0)` de `restore`. Esto indica que la actividad en Aula Virtual se realiza casi siempre a través del acceso web, aunque la intensidad total sí cambia según la franja horaria.
+
+## ¿Qué componentes predominan en cada franja horaria?
+
+```{r Tabla-componentes-por-franja}
+# Tabla de componentes por franja horaria
+knitr::kable(componentes_hora, caption = "Componentes más frecuentes por franja horaria")
+```
+
+La Tabla \@ref(tab:Tabla-componentes-por-franja) muestra que `Sistema` es el componente más frecuente en todas las franjas horarias, aunque el segundo y tercer lugar cambian ligeramente según el momento del día. En la mañana predominan `Sistema`, `Tarea` y `Cuestionario`, mientras que por la tarde siguen destacando esos mismos componentes pero con un peso relativamente mayor de `Tarea` y `Cuestionario`. Esto sugiere que el volumen de actividad cambia con la hora, pero que la estructura general del uso de la plataforma se mantiene bastante estable.
+
+# Conclusión
+
+En este trabajo hemos analizado un fichero de logs de Aula Virtual con el objetivo de describir cómo se utiliza la plataforma en la asignatura y qué patrones básicos pueden extraerse a partir de los eventos registrados. Para ello, primero hemos importado y preparado los datos, transformando la variable temporal y generando nuevas variables derivadas que nos permitieran estudiar la actividad por fechas, días de la semana y franjas horarias.
+
+A partir del análisis realizado, se observa que la actividad no se distribuye de forma completamente uniforme. Existen componentes y tipos de evento que concentran una parte importante de los registros, y también aparecen diferencias según el momento temporal en que se analiza la información. En particular, el estudio por días, semanas, meses y franjas horarias permite detectar periodos de mayor intensidad de uso, mientras que el cruce entre variables como `Componente`, `Nombre.evento`, `Origen` o `Contexto.del.evento` ayuda a describir con más detalle el comportamiento del conjunto de datos.
+
+En cuanto a la calidad del dataset, el análisis de valores perdidos muestra que el fichero puede utilizarse sin necesidad de aplicar una limpieza agresiva. Del mismo modo, los outliers detectados en la actividad diaria no se interpretan como errores, sino como días singulares de uso que pueden estar relacionados con el ritmo normal de la asignatura. Por tanto, más que eliminar información, en este trabajo se ha optado por conservar esos casos y utilizarlos como parte de la interpretación del comportamiento global de la plataforma.
+
+En conjunto, el análisis exploratorio realizado permite convertir un registro bruto de eventos en una descripción comprensible del uso de Aula Virtual. Además de responder a varias preguntas concretas, el trabajo deja preparada una base útil para estudios posteriores más específicos, por ejemplo sobre la evolución temporal del uso del campus, la relación entre tipos de evento y contextos, o la detección de periodos especialmente intensos de actividad.
