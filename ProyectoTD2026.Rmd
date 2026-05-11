@@ -397,6 +397,72 @@ knitr::kable(combinaciones_top, caption = "Combinaciones más frecuentes entre c
 
 La Tabla \@ref(tab:Combinaciones-componente-evento) permite ver qué combinación concreta de componente y evento es la más repetida. En este caso, la combinación situada en primera posición aparece `r combinaciones_top$n[1]` veces, lo que ayuda a identificar con más precisión qué acción domina dentro de los componentes más utilizados.
 
+## ¿Existen diferencias entre la actividad entre semana y la de los fines de semana?
 
+```{r Componentes-entre-semana-y-fin-de-semana}
+knitr::kable(componentes_semana, caption = "Componentes principales entre semana y en fines de semana")
+```
 
+La Tabla \@ref(tab:Componentes-entre-semana-y-fin-de-semana) compara los componentes más frecuentes entre semana y en fin de semana. Si se observan diferencias en los primeros puestos de cada grupo, eso sugiere que el uso de Aula Virtual no responde exactamente al mismo patrón durante toda la semana y que ciertas actividades se concentran más en días lectivos que en fines de semana.
 
+## ¿Cómo evoluciona la actividad total a lo largo del tiempo?
+
+```{r Evolucion-semanal, fig.cap="Evolución semanal del número de eventos"}
+ggplot(actividad_semanal, aes(x = fecha_semana, y = eventos)) +
+  geom_line(color = "navy") +
+  geom_point(color = "navy", size = 0.8) +
+  labs(x = "Semana", y = "Número de eventos")
+```
+
+La Figura \@ref(fig:Evolucion-semanal) muestra cómo cambia el número total de eventos de una semana a otra. En ella se distinguen periodos de mayor intensidad y otros de menor actividad, lo que permite detectar semanas especialmente activas y relacionarlas con momentos concretos del curso.
+
+## ¿Qué meses concentran mayor actividad?
+
+```{r Tabla-actividad-mensual}
+# Tabla de actividad por mes
+knitr::kable(actividad_mensual, caption = "Número de eventos por mes")
+```
+
+```{r Grafico-actividad-mensual, fig.cap="Actividad mensual registrada en Aula Virtual"}
+ggplot(actividad_mensual, aes(x = interaction(anio, mes, lex.order = TRUE), y = eventos, group = 1)) +
+  geom_line(color = "forestgreen") +
+  geom_point(color = "forestgreen") +
+  labs(x = "Mes", y = "Número de eventos") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+La Tabla \@ref(tab:Tabla-actividad-mensual) y la Figura \@ref(fig:Grafico-actividad-mensual) muestran qué meses concentran más actividad. El mes con mayor número de eventos registra `r max(actividad_mensual$eventos)` accesos, mientras que el de menor actividad queda claramente por debajo, lo que confirma que la intensidad de uso de Aula Virtual cambia a lo largo del curso.
+
+## ¿Qué relación existe entre el origen del evento y la franja horaria?
+
+```{r Tabla-origen-franja}
+# Tabla cruzada entre origen y franja horaria
+knitr::kable(origen_franja, caption = "Distribución de eventos según origen y franja horaria")
+```
+
+```{r Grafico-origen-franja, fig.cap="Relación entre origen del evento y franja horaria"}
+ggplot(origen_franja, aes(x = franja_horaria, y = n, fill = Origen)) +
+  geom_col(position = "dodge") +
+  labs(x = "Franja horaria", y = "Número de eventos", fill = "Origen")
+```
+
+La Tabla \@ref(tab:Tabla-origen-franja) y la Figura \@ref(fig:Grafico-origen-franja) muestran que el origen `web` domina con mucha diferencia en todas las franjas horarias. Por ejemplo, en la mañana se registran `r origen_franja$n[origen_franja$Origen == "web" & origen_franja$franja_horaria == "Mañana"]` eventos de tipo `web`, frente a `r origen_franja$n[origen_franja$Origen == "cli" & origen_franja$franja_horaria == "Mañana"]` de `cli` y `r ifelse(any(origen_franja$Origen == "restore" & origen_franja$franja_horaria == "Mañana"), origen_franja$n[origen_franja$Origen == "restore" & origen_franja$franja_horaria == "Mañana"], 0)` de `restore`. Esto indica que la actividad en Aula Virtual se realiza casi siempre a través del acceso web, aunque la intensidad total sí cambia según la franja horaria.
+
+## ¿Qué componentes predominan en cada franja horaria?
+
+```{r Tabla-componentes-por-franja}
+# Tabla de componentes por franja horaria
+knitr::kable(componentes_hora, caption = "Componentes más frecuentes por franja horaria")
+```
+
+La Tabla \@ref(tab:Tabla-componentes-por-franja) muestra que `Sistema` es el componente más frecuente en todas las franjas horarias, aunque el segundo y tercer lugar cambian ligeramente según el momento del día. En la mañana predominan `Sistema`, `Tarea` y `Cuestionario`, mientras que por la tarde siguen destacando esos mismos componentes pero con un peso relativamente mayor de `Tarea` y `Cuestionario`. Esto sugiere que el volumen de actividad cambia con la hora, pero que la estructura general del uso de la plataforma se mantiene bastante estable.
+
+# Conclusión
+
+En este trabajo hemos analizado un fichero de logs de Aula Virtual con el objetivo de describir cómo se utiliza la plataforma en la asignatura y qué patrones básicos pueden extraerse a partir de los eventos registrados. Para ello, primero hemos importado y preparado los datos, transformando la variable temporal y generando nuevas variables derivadas que nos permitieran estudiar la actividad por fechas, días de la semana y franjas horarias.
+
+A partir del análisis realizado, se observa que la actividad no se distribuye de forma completamente uniforme. Existen componentes y tipos de evento que concentran una parte importante de los registros, y también aparecen diferencias según el momento temporal en que se analiza la información. En particular, el estudio por días, semanas, meses y franjas horarias permite detectar periodos de mayor intensidad de uso, mientras que el cruce entre variables como `Componente`, `Nombre.evento`, `Origen` o `Contexto.del.evento` ayuda a describir con más detalle el comportamiento del conjunto de datos.
+
+En cuanto a la calidad del dataset, el análisis de valores perdidos muestra que el fichero puede utilizarse sin necesidad de aplicar una limpieza agresiva. Del mismo modo, los outliers detectados en la actividad diaria no se interpretan como errores, sino como días singulares de uso que pueden estar relacionados con el ritmo normal de la asignatura. Por tanto, más que eliminar información, en este trabajo se ha optado por conservar esos casos y utilizarlos como parte de la interpretación del comportamiento global de la plataforma.
+
+En conjunto, el análisis exploratorio realizado permite convertir un registro bruto de eventos en una descripción comprensible del uso de Aula Virtual. Además de responder a varias preguntas concretas, el trabajo deja preparada una base útil para estudios posteriores más específicos, por ejemplo sobre la evolución temporal del uso del campus, la relación entre tipos de evento y contextos, o la detección de periodos especialmente intensos de actividad.
