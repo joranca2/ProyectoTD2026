@@ -232,3 +232,88 @@ preguntas sobre el uso de Aula Virtual. Para ello, se realiza primero una
 carga y preparación de los datos, seguida de un análisis descriptivo, una
 revisión de datos perdidos y outliers, y finalmente una batería de respuestas
 apoyadas en tablas y figuras.
+
+# Material y Métodos
+
+Para el desarrollo del análisis, en primer lugar se cargan todas las librerías necesarias al principio del código. Estas librerías son las mostradas en la Tabla \@ref(tab:Librerias-utilizadas).
+
+```{r Librerias-utilizadas}
+# Tabla de librerías empleadas
+tabla_librerias <- data.frame(
+  Librería = c("ggplot2", "dplyr", "lubridate", "knitr", "bookdown", "tidyr", "stringr"),
+  Función = c("Visualización de datos mediante gráficos",
+              "Transformación y manipulación de datos",
+              "Manejo avanzado de fechas y horas",
+              "Generación de informes dinámicos",
+              "Creación de documentos académicos con referencias cruzadas",
+              "Organización de datos en formato tidy",
+              "Manipulación de cadenas")
+)
+
+knitr::kable(tabla_librerias, caption = "Librerías utilizadas y su función")
+```
+
+Posteriormente, se realiza la carga del archivo `logs_moodle_anon.csv`, almacenado en la carpeta `./data`. Una vez importado, se procede a convertir la variable `Hora` a formato fecha-hora con `as.POSIXct`, lo que permite derivar nuevas variables útiles para el análisis, como la fecha sin componente horaria, el día de la semana, el número de semana, el mes o la franja horaria.
+
+Dado que el fichero contiene variables principalmente categóricas y temporales, resulta útil crear nuevas variables derivadas que faciliten la agrupación de eventos. En concreto, se genera una variable `fecha` para estudiar la actividad diaria, una variable `franja_horaria` para distinguir entre madrugada, mañana, tarde y noche, y una variable `grupo_dia` para separar entre actividad entre semana y en fines de semana. Este tipo de transformaciones son habituales en un análisis exploratorio, ya que permiten pasar de un registro bruto a una representación más interpretable del comportamiento del sistema.
+
+Además, con el fin de resumir el conjunto de datos de manera sistemática, se construye un `data.frame` llamado `sumario`, inspirado en el planteamiento del Tema 5, en el que se recogen para cada variable su tipo, el número de niveles distintos, el valor más frecuente, su frecuencia y la proporción de datos perdidos. De esta manera, el trabajo no solo presenta figuras y tablas puntuales, sino también una descripción estructurada del dataset.
+
+Las variables principales consideradas en el estudio aparecen resumidas en la Tabla \@ref(tab:Variables-principales). Se han seleccionado tanto variables originales del fichero como algunas variables derivadas que permiten responder a las preguntas planteadas más adelante.
+
+```{r Variables-principales}
+# Tabla de variables que vamos a estudiar
+knitr::kable(variables_estudio, caption = "Variables principales utilizadas en el análisis")
+```
+
+A continuación, se muestra un resumen básico del conjunto de datos en la Tabla \@ref(tab:Sumario-del-dataset).
+
+```{r Sumario-del-dataset}
+# Tabla resumen del dataset
+knitr::kable(sumario, caption = "Resumen básico del dataset")
+```
+
+# Análisis de datos perdidos
+
+Al analizar los datos faltantes se observa que el conjunto de datos presenta un nivel de missing relativamente bajo en la mayor parte de las variables originales. Esto resulta razonable en un fichero de logs, donde los campos principales suelen estar definidos por el propio sistema y no dependen tanto de la introducción manual de datos como ocurre en otros contextos.
+
+No obstante, conviene revisar de forma explícita qué variables contienen valores perdidos y en qué proporción, ya que incluso una pequeña cantidad de `NA` puede afectar a tablas o gráficos agrupados. En la Tabla \@ref(tab:Tabla-missing) se muestra el número de valores perdidos por variable, así como su proporción respecto al total de observaciones.
+
+```{r Tabla-missing}
+# Tabla de datos perdidos
+knitr::kable(missing_resumen, caption = "Número y proporción de datos perdidos por variable")
+```
+
+La Figura \@ref(fig:Grafico-missing) representa gráficamente esa misma información. Como puede apreciarse, la mayor parte de las variables concentran una proporción muy baja de valores faltantes, lo que permite trabajar con el conjunto de datos sin necesidad de aplicar técnicas complejas de imputación.
+
+```{r Grafico-missing, fig.cap="Proporción de valores perdidos por variable"}
+ggplot(missing_resumen, aes(x = reorder(variable, proporcion), y = proporcion)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Variable", y = "Proporción de missing")
+```
+
+En este caso, y dado que el análisis se centra principalmente en recuentos y frecuencias de eventos, la estrategia adoptada consiste en mantener el conjunto de datos tal y como ha sido importado y dejar que cada cálculo ignore de forma natural los `NA` cuando corresponda. Esta decisión resulta razonable porque no se trata de un estudio inferencial sobre una variable continua crítica, sino de una exploración descriptiva de patrones de actividad.
+
+# Análisis de los outliers
+
+El análisis de outliers en un fichero de logs no puede abordarse exactamente igual que en un dataset tradicional con muchas variables numéricas. Aquí no resulta tan natural buscar valores atípicos en medidas físicas o económicas, pero sí tiene interés detectar días con una actividad anormalmente alta o baja.
+
+Por ello, se ha optado por estudiar el número de eventos registrados por día. En primer lugar, se agrupan todos los eventos por fecha y se calcula el número total de acciones registradas en cada una. Después, se aplica la regla del boxplot sobre esa variable diaria de recuento, obteniendo el umbral inferior y superior de actividad considerada típica. Los resultados aparecen en la Tabla \@ref(tab:Tabla-outliers).
+
+## Tabla resumen de outliers detectados en la actividad diaria
+```{r Tabla-outliers}
+# Tabla de outliers diarios
+knitr::kable(resumen_outliers, caption = "Identificación de outliers en la actividad diaria mediante la regla del boxplot")
+```
+
+La Figura \@ref(fig:Grafico-outliers) representa el número de eventos diarios y resalta en color los días marcados como outliers según el criterio anterior.
+
+```{r Grafico-outliers, fig.cap="Actividad diaria y detección de outliers según la regla del boxplot"}
+ ggplot(actividad_diaria, aes(x = fecha, y = eventos, color = outlier_boxplot)) +
+  geom_point() +
+  geom_line(alpha = 0.5) +
+  labs(x = "Fecha", y = "Número de eventos", color = "Outlier")
+```
+
+Este tipo de outliers no debe interpretarse necesariamente como errores. En un sistema de Aula Virtual, es perfectamente razonable encontrar días con una actividad especialmente alta, por ejemplo en momentos cercanos a entregas, publicación de materiales, revisiones o actividades evaluables. En consecuencia, en este trabajo los outliers se interpretan como días de comportamiento singular que pueden aportar información relevante sobre el uso real de la plataforma, y no como observaciones que deban eliminarse automáticamente.
