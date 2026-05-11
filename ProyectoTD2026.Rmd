@@ -317,3 +317,86 @@ La Figura \@ref(fig:Grafico-outliers) representa el número de eventos diarios y
 ```
 
 Este tipo de outliers no debe interpretarse necesariamente como errores. En un sistema de Aula Virtual, es perfectamente razonable encontrar días con una actividad especialmente alta, por ejemplo en momentos cercanos a entregas, publicación de materiales, revisiones o actividades evaluables. En consecuencia, en este trabajo los outliers se interpretan como días de comportamiento singular que pueden aportar información relevante sobre el uso real de la plataforma, y no como observaciones que deban eliminarse automáticamente.
+
+# Respuestas
+
+Una vez hemos cargado y preparado los datos, y tras revisar su estructura general, los posibles valores perdidos y la existencia de días atípicos de actividad, podemos plantear una serie de preguntas sobre el uso de Aula Virtual. Estas preguntas combinan análisis univariante, análisis bivariante y algunas transformaciones sencillas de las variables temporales.
+
+## ¿Qué componentes generan un mayor número de eventos?
+
+```{r Componentes-mas-frecuentes}
+# Tabla de componentes más frecuentes
+knitr::kable(componentes_top, caption = "Componentes con mayor número de eventos")
+```
+
+En la Tabla \@ref(tab:Componentes-mas-frecuentes) se observa que el componente con más eventos es `r componentes_top$Componente[1]`, con `r componentes_top$n[1]` registros. Los primeros puestos concentran una parte importante de la actividad total, lo que indica que el uso de Aula Virtual no se reparte por igual entre todos los componentes, sino que se concentra en unos pocos espacios principales.
+
+## ¿Qué tipos de eventos aparecen con más frecuencia?
+
+```{r Eventos-mas-frecuentes}
+# Tabla de eventos más frecuentes
+knitr::kable(eventos_top, caption = "Tipos de evento más frecuentes")
+```
+
+La Tabla \@ref(tab:Eventos-mas-frecuentes) muestra que el evento más frecuente es `r eventos_top$Nombre.evento[1]`, con `r eventos_top$n[1]` apariciones. Además, los eventos que ocupan las primeras posiciones marcan el tipo de interacción dominante en la plataforma y permiten distinguir si el uso está más orientado a consulta, navegación o actualización de contenidos.
+
+## ¿Cómo cambia la actividad según el día de la semana?
+
+```{r Tabla-dia-semana}
+# Tabla de actividad por día de la semana
+knitr::kable(actividad_dia_semana, caption = "Número de eventos por día de la semana")
+```
+
+```{r Grafico-dia-semana, fig.cap="Número de eventos por día de la semana"}
+ggplot(actividad_dia_semana, aes(x = dia_semana, y = eventos)) +
+  geom_col(fill = "steelblue") +
+  labs(x = "Día", y = "Número de eventos")
+```
+
+La Tabla \@ref(tab:Tabla-dia-semana) y la Figura \@ref(fig:Grafico-dia-semana) muestran que el día con mayor actividad es `r as.character(actividad_dia_semana$dia_semana[which.max(actividad_dia_semana$eventos)])`, con `r max(actividad_dia_semana$eventos)` eventos, mientras que el de menor actividad es `r as.character(actividad_dia_semana$dia_semana[which.min(actividad_dia_semana$eventos)])`, con `r min(actividad_dia_semana$eventos)` registros. Esto indica que la actividad semanal no es uniforme y que existen días claramente más intensos que otros dentro del uso de Aula Virtual.
+
+## ¿Qué franja horaria concentra más actividad?
+
+```{r Tabla-franja-horaria}
+# Tabla de actividad por franja horaria
+knitr::kable(actividad_franja, caption = "Número de eventos por franja horaria")
+```
+
+```{r Grafico-franja-horaria, fig.cap="Distribución de eventos por franja horaria"}
+ggplot(actividad_franja, aes(x = franja_horaria, y = eventos)) +
+  geom_col(fill = "darkorange") +
+  labs(x = "Franja horaria", y = "Número de eventos")
+```
+
+La Tabla \@ref(tab:Tabla-franja-horaria) y la Figura \@ref(fig:Grafico-franja-horaria) muestran que la franja con mayor actividad es `r as.character(actividad_franja$franja_horaria[which.max(actividad_franja$eventos)])`, con `r max(actividad_franja$eventos)` eventos. La diferencia entre franjas permite ver si el uso de la plataforma se concentra más en horario diurno o si también mantiene una actividad destacable fuera de las horas más habituales.
+
+## ¿Qué contextos del evento aparecen más veces en el fichero?
+
+```{r Contextos-mas-frecuentes}
+# Tabla de contextos más frecuentes
+knitr::kable(contextos_top, caption = "Contextos del evento con más actividad")
+```
+
+En la Tabla \@ref(tab:Contextos-mas-frecuentes) se aprecia que el contexto más frecuente es `r contextos_top$Contexto.del.evento[1]`, con `r contextos_top$n[1]` eventos. Esto ayuda a localizar en qué entorno funcional de Aula Virtual se concentra la mayor parte de la actividad registrada.
+
+## ¿Qué usuarios registran mayor número de eventos?
+
+```{r Usuarios-mas-activos}
+# Tabla de usuarios más activos
+knitr::kable(usuarios_top, caption = "Usuarios con mayor número de eventos registrados")
+```
+
+La Tabla \@ref(tab:Usuarios-mas-activos) muestra qué usuarios concentran más registros en el fichero. El usuario situado en primera posición acumula `r usuarios_top$n[1]` eventos, por lo que existe cierta desigualdad en el volumen de actividad registrado por usuario. Aun así, este resultado debe interpretarse con prudencia, ya que un mayor número de eventos solo refleja más interacción registrada en la plataforma.
+
+## ¿Qué combinaciones de componente y nombre de evento son las más frecuentes?
+
+```{r Combinaciones-componente-evento}
+# Tabla de combinaciones más frecuentes
+knitr::kable(combinaciones_top, caption = "Combinaciones más frecuentes entre componente y nombre de evento")
+```
+
+La Tabla \@ref(tab:Combinaciones-componente-evento) permite ver qué combinación concreta de componente y evento es la más repetida. En este caso, la combinación situada en primera posición aparece `r combinaciones_top$n[1]` veces, lo que ayuda a identificar con más precisión qué acción domina dentro de los componentes más utilizados.
+
+
+
+
