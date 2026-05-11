@@ -1,0 +1,234 @@
+---
+title: "Mini Proyecto 2026. Análisis exploratorio de logs de Aula Virtual"
+author: "Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Núñez e Ignacio Llopis Maset"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    fig_caption: yes
+    df_print: kable
+    toc: true
+    toc_depth: 2
+    number_sections: true
+  bookdown::html_document2:
+    fig_caption: yes
+    df_print: kable
+    toc: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r Configuracion-general, include=FALSE}
+# Configuramos el documento
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(knitr)
+library(bookdown)
+library(tidyr)
+library(stringr)
+
+options(OutDec = ",", digits = 3)
+```
+
+```{r Carga-y-preparacion-datos, include=FALSE}
+# Localizamos el archivo de datos
+ruta_datos <- if (file.exists("data/logs_moodle_anon.csv")) {
+  "data/logs_moodle_anon.csv"
+} else if (file.exists("logs_moodle_anon.csv")) {
+  "logs_moodle_anon.csv"
+} else {
+  stop("No se encuentra el archivo logs_moodle_anon.csv ni en ./data ni en la carpeta raíz del proyecto.")
+}
+
+# Cargamos el fichero CSV
+logs <- read.csv(ruta_datos, stringsAsFactors = FALSE)
+names(logs) <- make.names(names(logs))
+
+# Convertimos la hora y creamos variables derivadas
+logs$Hora <- as.POSIXct(logs$Hora, format = "%d/%m/%y, %H:%M:%S")
+logs$fecha <- as.Date(logs$Hora)
+logs$hora_num <- hour(logs$Hora)
+logs$mes_num <- month(logs$Hora)
+logs$mes <- factor(month(logs$Hora, label = TRUE, abbr = TRUE),
+                   levels = month(seq.Date(as.Date("2026-01-01"), by = "month", length.out = 12), label = TRUE, abbr = TRUE))
+logs$dia_semana <- factor(wday(logs$Hora, label = TRUE, abbr = FALSE, week_start = 1),
+                          levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"))
+logs$semana <- isoweek(logs$Hora)
+logs$anio <- year(logs$Hora)
+logs$fecha_semana <- floor_date(logs$Hora, unit = "week", week_start = 1)
+
+logs$franja_horaria <- case_when(
+  logs$hora_num >= 6 & logs$hora_num < 12 ~ "Mañana",
+  logs$hora_num >= 12 & logs$hora_num < 18 ~ "Tarde",
+  logs$hora_num >= 18 & logs$hora_num < 24 ~ "Noche",
+  TRUE ~ "Madrugada"
+)
+logs$franja_horaria <- factor(logs$franja_horaria,
+                              levels = c("Madrugada", "Mañana", "Tarde", "Noche"))
+
+logs$grupo_dia <- ifelse(logs$dia_semana %in% c("sábado", "domingo"),
+                         "Fines de semana", "Entre semana")
+
+# Construimos un resumen básico del dataset
+sumario_dataset <- function(data){
+  data.frame(
+    variable = names(data),
+    type = sapply(data, function(x) class(x)[1]),
+    levels = sapply(data, function(x) length(unique(x))),
+    topLevel = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      names(xt)[1]
+    }),
+    topCount = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      as.numeric(xt[1])
+    }),
+    topFrac = sapply(data, function(x){
+      xt <- sort(table(x), decreasing = TRUE)
+      if(length(xt) == 0) return(NA)
+      as.numeric(xt[1]) / length(x)
+    }),
+    missFreq = sapply(data, function(x) sum(is.na(x))),
+    missFrac = sapply(data, function(x) mean(is.na(x)))
+  )
+}
+
+sumario <- sumario_dataset(logs)
+
+variables_estudio <- data.frame(
+  Variable = c("Hora", "Nombre.completo.del.usuario", "Usuario.afectado",
+               "Contexto.del.evento", "Componente", "Nombre.evento",
+               "Descripción", "Origen", "Dirección.IP", "fecha",
+               "dia_semana", "franja_horaria"),
+  Descripción = c("Instante en el que se registra el evento",
+                  "Usuario que realiza la acción",
+                  "Usuario sobre el que recae la acción, si aplica",
+                  "Espacio o contexto donde ocurre el evento",
+                  "Subsistema de Moodle que genera el evento",
+                  "Tipo de evento registrado",
+                  "Texto descriptivo del evento",
+                  "Canal o procedencia del evento",
+                  "Dirección IP anonimizada del acceso",
+                  "Fecha sin componente horaria",
+                  "Día de la semana del evento",
+                  "Agrupación horaria para el análisis"),
+  Tipo = c("POSIXct", "character", "character", "character", "character",
+           "character", "character", "character", "character", "Date",
+           "factor", "factor")
+)
+
+missing_resumen <- data.frame(
+  variable = names(logs),
+  missings = sapply(logs, function(x) sum(is.na(x))),
+  proporcion = sapply(logs, function(x) mean(is.na(x)))
+) %>%
+  arrange(desc(proporcion))
+
+actividad_diaria <- logs %>%
+  count(fecha, name = "eventos") %>%
+  arrange(fecha)
+
+actividad_diaria <- actividad_diaria %>%
+  mutate(dia_semana = factor(wday(fecha, label = TRUE, abbr = FALSE, week_start = 1),
+                             levels = c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")))
+
+q1 <- quantile(actividad_diaria$eventos, 0.25, na.rm = TRUE)
+q3 <- quantile(actividad_diaria$eventos, 0.75, na.rm = TRUE)
+iqr_val <- IQR(actividad_diaria$eventos, na.rm = TRUE)
+lim_inf <- q1 - 1.5 * iqr_val
+lim_sup <- q3 + 1.5 * iqr_val
+
+actividad_diaria$outlier_boxplot <- actividad_diaria$eventos < lim_inf | actividad_diaria$eventos > lim_sup
+
+resumen_outliers <- data.frame(
+  method = "ReglaBoxplot",
+  n = nrow(actividad_diaria),
+  nMiss = sum(is.na(actividad_diaria$eventos)),
+  nOut = sum(actividad_diaria$outlier_boxplot, na.rm = TRUE),
+  lowLim = lim_inf,
+  upLim = lim_sup,
+  minNom = min(actividad_diaria$eventos[!actividad_diaria$outlier_boxplot], na.rm = TRUE),
+  maxNom = max(actividad_diaria$eventos[!actividad_diaria$outlier_boxplot], na.rm = TRUE)
+)
+
+componentes_top <- logs %>%
+  count(Componente, sort = TRUE) %>%
+  slice_head(n = 10)
+
+eventos_top <- logs %>%
+  count(Nombre.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+actividad_dia_semana <- logs %>%
+  count(dia_semana, name = "eventos")
+
+actividad_franja <- logs %>%
+  count(franja_horaria, name = "eventos")
+
+contextos_top <- logs %>%
+  count(Contexto.del.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+usuarios_top <- logs %>%
+  count(Nombre.completo.del.usuario, sort = TRUE) %>%
+  slice_head(n = 10)
+
+combinaciones_top <- logs %>%
+  count(Componente, Nombre.evento, sort = TRUE) %>%
+  slice_head(n = 10)
+
+componentes_semana <- logs %>%
+  count(grupo_dia, Componente, sort = TRUE) %>%
+  group_by(grupo_dia) %>%
+  slice_head(n = 10) %>%
+  ungroup()
+
+origen_franja <- logs %>%
+  count(Origen, franja_horaria, sort = TRUE)
+
+actividad_mensual <- logs %>%
+  count(anio, mes_num, mes, name = "eventos") %>%
+  arrange(anio, mes_num)
+
+actividad_semanal <- logs %>%
+  count(fecha_semana, name = "eventos") %>%
+  arrange(fecha_semana)
+
+actividad_horaria <- logs %>%
+  count(hora_num, name = "eventos")
+
+componentes_hora <- logs %>%
+  count(franja_horaria, Componente, sort = TRUE) %>%
+  group_by(franja_horaria) %>%
+  slice_head(n = 5) %>%
+  ungroup()
+```
+
+# Introducción
+
+En este proyecto se aborda el análisis exploratorio de datos a partir de un
+fichero de logs de Aula Virtual de la asignatura Tratamiento de los Datos,
+con el objetivo de extraer información relevante sobre la actividad
+registrada en la plataforma, los tipos de eventos más habituales y los
+patrones temporales de uso. El conjunto de datos utilizado corresponde al
+archivo `logs_moodle_anon.csv`, proporcionado para el mini proyecto y
+anonimizado antes de su distribución.
+
+A diferencia de otros conjuntos de datos más clásicos, en este caso no 
+trabajamos con encuestas o mediciones físicas, sino con un registro de
+eventos. Esto hace especialmente interesante el análisis, ya que cada fila
+del fichero representa una acción concreta realizada dentro de Aula Virtual.
+El estudio de estos eventos permite responder a preguntas relacionadas con el
+comportamiento de uso de la plataforma, la frecuencia de actividad y las
+diferencias entre componentes, contextos y franjas horarias.
+
+El objetivo principal del trabajo es transformar este registro bruto en un
+conjunto de datos interpretable y utilizable para responder a una serie de
+preguntas sobre el uso de Aula Virtual. Para ello, se realiza primero una
+carga y preparación de los datos, seguida de un análisis descriptivo, una
+revisión de datos perdidos y outliers, y finalmente una batería de respuestas
+apoyadas en tablas y figuras.
