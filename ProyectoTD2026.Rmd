@@ -329,61 +329,115 @@ tabla_pdf(sumario_corto, "Resumen básico del dataset")
 
 # Análisis de datos perdidos
 
-Al analizar los datos faltantes se observa que el conjunto de datos presenta un nivel de missing relativamente bajo en la mayor parte de las variables originales. Esto resulta razonable en un fichero de logs, donde los campos principales suelen estar definidos por el propio sistema y no dependen tanto de la introducción manual de datos como ocurre en otros contextos.
+Al analizar los datos faltantes se observa que el conjunto de datos
+presenta un nivel de missing relativamente bajo en la mayor parte de las
+variables originales. Esto resulta razonable en un fichero de logs,
+donde los campos principales suelen estar definidos por el propio
+sistema y no dependen tanto de la introducción manual de datos como
+ocurre en otros contextos.
 
-No obstante, conviene revisar de forma explícita qué variables contienen valores perdidos y en qué proporción, ya que incluso una pequeña cantidad de `NA` puede afectar a tablas o gráficos agrupados. En la Tabla \@ref(tab:Tabla-missing) se muestra el número de valores perdidos por variable, así como su proporción respecto al total de observaciones.
+No obstante, conviene revisar de forma explícita qué variables contienen
+valores perdidos y en qué proporción, ya que incluso una pequeña
+cantidad de `NA` puede afectar a tablas o gráficos agrupados. En la
+Tabla \@ref(tab:Tabla-missing) se muestra el número de valores perdidos
+por variable, así como su proporción respecto al total de observaciones.
 
 ```{r Tabla-missing}
 # Tabla de datos perdidos
-knitr::kable(missing_resumen, caption = "Número y proporción de datos perdidos por variable")
+tabla_pdf(missing_resumen, "Número y proporción de datos perdidos por variable")
 ```
 
-La Figura \@ref(fig:Grafico-missing) representa gráficamente esa misma información. Como puede apreciarse, la mayor parte de las variables concentran una proporción muy baja de valores faltantes, lo que permite trabajar con el conjunto de datos sin necesidad de aplicar técnicas complejas de imputación.
+La Figura \@ref(fig:Grafico-missing) representa gráficamente esa misma
+información. Como puede apreciarse, la mayor parte de las variables
+concentran una proporción muy baja de valores faltantes, lo que permite
+trabajar con el conjunto de datos sin necesidad de aplicar técnicas
+complejas de imputación.
 
-```{r Grafico-missing, fig.cap="Proporción de valores perdidos por variable"}
+```{r Grafico-missing, fig.cap="Proporción de valores perdidos por variable", fig.width=6.5, fig.height=4.2, out.width="78%"}
 ggplot(missing_resumen, aes(x = reorder(variable, proporcion), y = proporcion)) +
   geom_col() +
   coord_flip() +
   labs(x = "Variable", y = "Proporción de missing")
 ```
 
-En este caso, y dado que el análisis se centra principalmente en recuentos y frecuencias de eventos, la estrategia adoptada consiste en mantener el conjunto de datos tal y como ha sido importado y dejar que cada cálculo ignore de forma natural los `NA` cuando corresponda. Esta decisión resulta razonable porque no se trata de un estudio inferencial sobre una variable continua crítica, sino de una exploración descriptiva de patrones de actividad.
+\FloatBarrier
+
+En este caso, y dado que el análisis se centra principalmente en
+recuentos y frecuencias de eventos, la estrategia adoptada consiste en
+mantener el conjunto de datos tal y como ha sido importado y dejar que
+cada cálculo ignore de forma natural los `NA` cuando corresponda. Esta
+decisión resulta razonable porque no se trata de un estudio inferencial
+sobre una variable continua crítica, sino de una exploración descriptiva
+de patrones de actividad.
 
 # Análisis de los outliers
 
-El análisis de outliers en un fichero de logs no puede abordarse exactamente igual que en un dataset tradicional con muchas variables numéricas. Aquí no resulta tan natural buscar valores atípicos en medidas físicas o económicas, pero sí tiene interés detectar días con una actividad anormalmente alta o baja.
+El análisis de outliers en un fichero de logs no puede abordarse
+exactamente igual que en un dataset tradicional con muchas variables
+numéricas. Aquí no resulta tan natural buscar valores atípicos en
+medidas físicas o económicas, pero sí tiene interés detectar días con
+una actividad anormalmente alta o baja.
 
-Por ello, se ha optado por estudiar el número de eventos registrados por día. En primer lugar, se agrupan todos los eventos por fecha y se calcula el número total de acciones registradas en cada una. Después, se aplica la regla del boxplot sobre esa variable diaria de recuento, obteniendo el umbral inferior y superior de actividad considerada típica. Los resultados aparecen en la Tabla \@ref(tab:Tabla-outliers).
+Por ello, se ha optado por estudiar el número de eventos registrados por
+día. En primer lugar, se agrupan todos los eventos por fecha y se
+calcula el número total de acciones registradas en cada una. Después, se
+aplica la regla del boxplot sobre esa variable diaria de recuento,
+obteniendo el umbral inferior y superior de actividad considerada
+típica. Los resultados aparecen en la Tabla \@ref(tab:Tabla-outliers).
 
-## Tabla resumen de outliers detectados en la actividad diaria
+## Outliers detectados en la actividad diaria
+
 ```{r Tabla-outliers}
 # Tabla de outliers diarios
-knitr::kable(resumen_outliers, caption = "Identificación de outliers en la actividad diaria mediante la regla del boxplot")
+tabla_pdf(resumen_outliers, "Identificación de outliers en la actividad diaria mediante la regla del boxplot")
 ```
 
-La Figura \@ref(fig:Grafico-outliers) representa el número de eventos diarios y resalta en color los días marcados como outliers según el criterio anterior.
+La Figura \@ref(fig:Grafico-outliers) representa el número de eventos
+diarios y resalta en color los días marcados como outliers según el
+criterio anterior.
 
-```{r Grafico-outliers, fig.cap="Actividad diaria y detección de outliers según la regla del boxplot"}
+```{r Grafico-outliers, fig.cap="Actividad diaria y detección de outliers según la regla del boxplot", fig.width=6.7, fig.height=4.1, out.width="80%"}
  ggplot(actividad_diaria, aes(x = fecha, y = eventos, color = outlier_boxplot)) +
   geom_point() +
   geom_line(alpha = 0.5) +
   labs(x = "Fecha", y = "Número de eventos", color = "Outlier")
 ```
 
-Este tipo de outliers no debe interpretarse necesariamente como errores. En un sistema de Aula Virtual, es perfectamente razonable encontrar días con una actividad especialmente alta, por ejemplo en momentos cercanos a entregas, publicación de materiales, revisiones o actividades evaluables. En consecuencia, en este trabajo los outliers se interpretan como días de comportamiento singular que pueden aportar información relevante sobre el uso real de la plataforma, y no como observaciones que deban eliminarse automáticamente.
+\FloatBarrier
+
+Este tipo de outliers no debe interpretarse necesariamente como errores.
+En un sistema de Aula Virtual, es perfectamente razonable encontrar días
+con una actividad especialmente alta, por ejemplo en momentos cercanos a
+entregas, publicación de materiales, revisiones o actividades
+evaluables. En consecuencia, en este trabajo los outliers se interpretan
+como días de comportamiento singular que pueden aportar información
+relevante sobre el uso real de la plataforma, y no como observaciones
+que deban eliminarse automáticamente.
 
 # Respuestas
 
-Una vez hemos cargado y preparado los datos, y tras revisar su estructura general, los posibles valores perdidos y la existencia de días atípicos de actividad, podemos plantear una serie de preguntas sobre el uso de Aula Virtual. Estas preguntas combinan análisis univariante, análisis bivariante y algunas transformaciones sencillas de las variables temporales.
+Una vez hemos cargado y preparado los datos, y tras revisar su
+estructura general, los posibles valores perdidos y la existencia de
+días atípicos de actividad, podemos plantear una serie de preguntas
+sobre el uso de Aula Virtual. Estas preguntas combinan análisis
+univariante, análisis bivariante y algunas transformaciones sencillas de
+las variables temporales.
 
 ## ¿Qué componentes generan un mayor número de eventos?
 
 ```{r Componentes-mas-frecuentes}
 # Tabla de componentes más frecuentes
-knitr::kable(componentes_top, caption = "Componentes con mayor número de eventos")
+tabla_pdf(componentes_top, "Componentes con mayor número de eventos")
 ```
 
-En la Tabla \@ref(tab:Componentes-mas-frecuentes) se observa que el componente con más eventos es `r componentes_top$Componente[1]`, con `r componentes_top$n[1]` registros. Los primeros puestos concentran una parte importante de la actividad total, lo que indica que el uso de Aula Virtual no se reparte por igual entre todos los componentes, sino que se concentra en unos pocos espacios principales.
+\FloatBarrier
+
+En la Tabla \@ref(tab:Componentes-mas-frecuentes) se observa que el
+componente con más eventos es `r componentes_top$Componente[1]`, con
+`r componentes_top$n[1]` registros. Los primeros puestos concentran una
+parte importante de la actividad total, lo que indica que el uso de Aula
+Virtual no se reparte por igual entre todos los componentes, sino que se
+concentra en unos pocos espacios principales.
 
 ## ¿Qué tipos de eventos aparecen con más frecuencia?
 
