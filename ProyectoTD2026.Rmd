@@ -2,6 +2,7 @@
 title: "Mini Proyecto 2026. Análisis exploratorio de logs de Aula Virtual"
 author: "Jorge Andrés Catalá, Hugo Cuñat Alabau, Andrés Tamarit Núñez e Ignacio Llopis Maset"
 date: "`r Sys.Date()`"
+lang: es
 output:
   bookdown::pdf_document2:
     fig_caption: yes
@@ -9,17 +10,36 @@ output:
     toc: true
     toc_depth: 2
     number_sections: true
+    latex_engine: xelatex
   bookdown::html_document2:
     fig_caption: yes
     df_print: kable
     toc: true
     toc_depth: 2
     number_sections: true
+header-includes:
+  - \usepackage{float}
+  - \usepackage[section]{placeins}
+  - \usepackage{booktabs}
+  - \usepackage{caption}
+  - \usepackage{flafter}
+  - \renewcommand{\tablename}{Tabla}
+  - \renewcommand{\figurename}{Figura}
 ---
 
 ```{r Configuracion-general, include=FALSE}
 # Configuramos el documento
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.pos = "H",
+  fig.align = "center",
+  out.width = "82%",
+  fig.width = 6.5,
+  fig.height = 4,
+  dev = "pdf"
+)
 
 library(ggplot2)
 library(dplyr)
@@ -28,8 +48,30 @@ library(knitr)
 library(bookdown)
 library(tidyr)
 library(stringr)
+library(kableExtra)
 
 options(OutDec = ",", digits = 3)
+
+# Función única para todas las tablas del informe.
+# En PDF fija la tabla donde se escribe y la reduce si es demasiado ancha.
+tabla_pdf <- function(x, caption, font_size = 8.5){
+  if (knitr::is_latex_output()) {
+    knitr::kable(
+      x,
+      caption = caption,
+      booktabs = TRUE,
+      linesep = ""
+    ) %>%
+      kableExtra::kable_styling(
+        latex_options = c("HOLD_position", "scale_down"),
+        full_width = FALSE,
+        position = "center",
+        font_size = font_size
+      )
+  } else {
+    knitr::kable(x, caption = caption)
+  }
+}
 ```
 
 ```{r Carga-y-preparacion-datos, include=FALSE}
@@ -240,18 +282,22 @@ Para el desarrollo del análisis, en primer lugar se cargan todas las librerías
 ```{r Librerias-utilizadas}
 # Tabla de librerías empleadas
 tabla_librerias <- data.frame(
-  Librería = c("ggplot2", "dplyr", "lubridate", "knitr", "bookdown", "tidyr", "stringr"),
+  Librería = c("ggplot2", "dplyr", "lubridate", "knitr", "bookdown", "tidyr", "stringr", "kableExtra"),
   Función = c("Visualización de datos mediante gráficos",
               "Transformación y manipulación de datos",
               "Manejo avanzado de fechas y horas",
               "Generación de informes dinámicos",
               "Creación de documentos académicos con referencias cruzadas",
               "Organización de datos en formato tidy",
-              "Manipulación de cadenas")
+              "Manipulación de cadenas",
+              "Control del formato y posición de tablas en PDF")
 )
 
-knitr::kable(tabla_librerias, caption = "Librerías utilizadas y su función")
+tabla_pdf(tabla_librerias, "Librerías utilizadas y su función")
 ```
+
+\FloatBarrier
+
 
 Posteriormente, se realiza la carga del archivo `logs_moodle_anon.csv`, almacenado en la carpeta `./data`. Una vez importado, se procede a convertir la variable `Hora` a formato fecha-hora con `as.POSIXct`, lo que permite derivar nuevas variables útiles para el análisis, como la fecha sin componente horaria, el día de la semana, el número de semana, el mes o la franja horaria.
 
@@ -263,15 +309,23 @@ Las variables principales consideradas en el estudio aparecen resumidas en la Ta
 
 ```{r Variables-principales}
 # Tabla de variables que vamos a estudiar
-knitr::kable(variables_estudio, caption = "Variables principales utilizadas en el análisis")
+tabla_pdf(variables_estudio, "Variables principales utilizadas en el análisis")
 ```
+
+\FloatBarrier
+
 
 A continuación, se muestra un resumen básico del conjunto de datos en la Tabla \@ref(tab:Sumario-del-dataset).
 
 ```{r Sumario-del-dataset}
 # Tabla resumen del dataset
-knitr::kable(sumario, caption = "Resumen básico del dataset")
+sumario_corto <- sumario %>%
+  select(variable, type, levels, topCount, missFreq, missFrac)
+
+tabla_pdf(sumario_corto, "Resumen básico del dataset")
 ```
+
+\FloatBarrier
 
 # Análisis de datos perdidos
 
